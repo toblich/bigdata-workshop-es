@@ -44,7 +44,8 @@ geometry: margin=3cm
     terno `pendulum`. Luego utilizando métodos de esta librería obtenga la fecha
     resultante de sumar a la fecha actual los minutos indicados por la variable de
     clase `Time`.
-4. _Asserts, múltiples excepciones y decorators_
+
+4. _Asserts y múltiples excepciones_
     a. Cree una nueva clase `Calculator` que contenga dos atributos, `x` e `y`. Verifique
     en el constructor, mediante un assert, que estos atributos son de tipo
     numérico.
