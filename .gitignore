@@ -20,3 +20,4 @@ superset/conf/superset.db
 __pycache__
 dataset/titanic_*
 .idea/
+.vscode

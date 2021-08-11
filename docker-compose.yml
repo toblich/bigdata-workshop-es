@@ -29,7 +29,7 @@ services:
     container_name: worker1
     image: arjones/pyspark:2.4.5
     restart: always
-    command: ["/opt/spark/sbin/start-slave.sh", "spark://master:7077"]
+    command: ["/opt/spark/sbin/start-slave.sh", "spark://master:7077", "--memory", "512m", "--cores", "2"]
     environment:
       MASTER: spark://master:7077
       SPARK_NO_DAEMONIZE: 1
@@ -48,7 +48,7 @@ services:
     container_name: worker2
     image: arjones/pyspark:2.4.5
     restart: always
-    command: ["/opt/spark/sbin/start-slave.sh", "spark://master:7077"]
+    command: ["/opt/spark/sbin/start-slave.sh", "spark://master:7077", "--memory", "512m", "--cores", "2"]
     environment:
       MASTER: spark://master:7077
       SPARK_NO_DAEMONIZE: 1

@@ -44,6 +44,16 @@ function superset-init {
   docker exec -it superset superset-init
 }
 
+function superset-start {
+  echo 'Starting Superset container'
+  docker container start superset
+}
+
+function superset-stop {
+  echo 'Stopping Superset container'
+  docker container stop superset
+}
+
 function psql {
   docker exec -it postgres psql -U workshop workshop
 }
@@ -75,6 +85,14 @@ case $1 in
   token
     ;;
 
+  superset-start )
+  superset-start
+    ;;
+  
+  superset-stop )
+  superset-stop
+    ;;
+
   superset-init )
   superset-init
     ;;
@@ -84,7 +102,7 @@ case $1 in
     ;;
 
   * )
-  printf "ERROR: Missing command\n  Usage: `basename $0` (start|stop|cleanup|token|logs|update)\n"
+  printf "ERROR: Missing command\n  Usage: `basename $0` (start|stop|cleanup|token|logs|update|superset-start|superset-stop|superset-init)\n"
   exit 1
     ;;
 esac
