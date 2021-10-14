@@ -19,7 +19,7 @@ def _read_number_and_square(store_dir):
     return int(n) ** 2
 
 
-default_args = {'owner': 'pedro', 'retries': 0, 'start_date': datetime(2021, 8, 9)}
+default_args = {'owner': 'pedro', 'retries': 0, 'start_date': datetime(2021, 10, 10)}
 with DAG(
     'random_number', default_args=default_args, schedule_interval='0 4 * * *'
 ) as dag:

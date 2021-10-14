@@ -145,7 +145,7 @@ services:
       - postgres-airflow
     environment:
       EXECUTOR: Local
-      LOAD_EX: n
+      AIRFLOW__CORE__LOAD_EXAMPLES: false
       AIRFLOW__WEBSERVER__WEB_SERVER_PORT: 9090
       AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: "Eff80poJxv6LE4432pDC6OmD6N449KCSuhUAMLXiq4U="

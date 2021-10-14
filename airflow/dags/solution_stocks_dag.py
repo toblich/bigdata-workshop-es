@@ -102,7 +102,7 @@ def _perform_daily_report(**context):
 default_args = {
     'owner': 'pedro',
     'retries': 0,
-    'start_date': datetime(2021, 8, 5),
+    'start_date': datetime(2021, 10, 8),
     'email_on_failure': True,
     'email_on_retry': False,
     'email': ['pedro@muttdata.ai'],
@@ -152,4 +152,4 @@ with DAG(
         upstream_task.set_downstream(task)
         task.set_downstream(insert_daily_data)
     insert_daily_data.set_downstream(do_daily_report)
-    do_daily_report.set_downstream(send_report_email)
+    # do_daily_report.set_downstream(send_report_email)
