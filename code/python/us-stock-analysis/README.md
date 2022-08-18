@@ -64,21 +64,19 @@ En el siguiente diagrama podemos ver los distintos componentes con los que vamos
 Lo primero que haremos sera generar una serie de eventos fake que estaremos publicando en Kafka.
 
 ```bash
-docker exec -it worker1 bash
+docker exec -it worker1 \
+  python /app/python/us-stock-analysis/src/stream/fake_stock_price_generator.py \
+  kafka:9092 stocks 2017-11-11T10:00:00Z
 
-cd /app/python/us-stock-analysis/
-
-# generate stream data
-python src/stream/fake_stock_price_generator.py kafka:9092 stocks 2017-11-11T10:00:00Z
+# apretar CTRL+C para salir
 ```
 
 ### Chequear el contenido de Kafka
 Vamos a contrastar que los datos generados por el faker estén llegando efectivamente a Kafka.  
 
 ```bash
-docker exec -it kafka bash
-
-/opt/kafka_2.11-0.10.1.0/bin/kafka-console-consumer.sh \
+docker exec -it kafka \
+  /opt/kafka_2.11-0.10.1.0/bin/kafka-console-consumer.sh \
   --bootstrap-server kafka:9092 --topic stocks --from-beginning
 
 # apretar CTRL+C para salir
@@ -115,6 +113,79 @@ Podemos consultar una posición cualquiera del log agregando las opciones `-oN` 
 ### Procesamiento usando Spark Structured Streaming
 [Structured Streaming + Kafka Integration Guide](https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html#deploying)
 
+#### Estructura de una conuslta Spark Structured Streaming
+
+Paso 1: Definir el input
+
+En una consola, ejecutamos el siguiente comando que va a ser el input de nuestro job
+```bash
+nc -lk 9999
+```
+
+En otra consola, iniciamos una sesión de Spark interactiva.
+```bash
+pyspark --total-executor-cores 1 --executor-memory 512m --driver-memory 512m
+```
+
+```python
+import pyspark.sql.functions as F
+
+lines = (
+    spark.readStream.format("socket")
+    .option("host", "localhost")
+    .option("port", 9999)
+    .load()
+)
+```
+
+Paso 2: Realizar las transformaciones
+
+```python
+words = lines.select(F.explode(F.split(F.col("value"), "\\s")).alias("word"))
+counts = words.groupBy("word").count()
+```
+
+Paso 3: Definir el output sink y el modo (update, complete, append)
+
+```python
+writer = counts.writeStream.format("console").outputMode("complete")
+```
+
+Paso 4: Especificar la configuración de procesamiento (checkpoint y trigger)
+
+```python
+checkpoint_dir = "/tmp/streaming-exmaple"
+writer = (
+    writer
+    .trigger(processingTime="1 second")
+    .option("checkpointLocation", checkpoint_dir)
+)
+```
+
+Paso 5: Ejecutar la consulta
+
+```python
+query = writer.start()
+query.awaitTermination()
+# escribir en la otra consola
+# CTRL + C para pausar
+query.stop()
+
+writer = (
+    counts.writeStream.format("console").outputMode("update")
+    .trigger(processingTime="1 second")
+    .option("checkpointLocation", checkpoint_dir)
+)
+
+query = writer.start()
+query.awaitTermination()
+# CTRL + C para pausar
+# escribir en la otra consola
+query.stop()
+```
+
+#### US stocks
+
 Ya comprobado que tenemos datos en Kafka, pasaremos a procesar los mismos haciendo uso de Spark Structured Streaming.
 
 Vamos a trabajar con los siguientes escenarios:
@@ -133,23 +204,32 @@ El procedimiento general ara esto, es abrir un tab e ingresar al servidor donde 
 Luego, para correr la aplicación de Spark conectarse a un worker, ir al directorio con el código y correr `spark-submit` de la siguiente manera:
 
 ```bash
-docker exec -it worker1 bash
-
-cd /app/python/us-stock-analysis/
-
-spark-submit \
+docker exec -it worker1 /opt/spark/bin/spark-submit \
   --master 'spark://master:7077' \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
   --jars /app/postgresql-42.1.4.jar \
   --total-executor-cores 1 \
-  src/stream/etl_stream.py \
-  kafka:9092 stocks
+  /app/python/us-stock-analysis/src/stream/etl_stream.py \
+  --broker kafka:9092 --topics stocks --query 1
 ```
 La primer consulta (`query1 | Parquet Output`) finalizará luego de 120 segundos (esto es a fines prácticos, para no sobrecargar el ambiente con muchos archivos), el resto de los procesos se puedes stoppear presionando `Ctrl + c`.
 
 #### Escribiendo a parquet
 ##### `query1 | Parquet Output`
-Recordar que para correr esta consulta debes descomentar la sección correspondiente a `query1 | Parquet Output` y comentar las restantes.
+Procedemos a ejectura esta primer consulta, la cual persistirá datos en archivos parquet.
+
+```bash
+docker exec -it worker1 /opt/spark/bin/spark-submit \
+  --master 'spark://master:7077' \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
+  --jars /app/postgresql-42.1.4.jar \
+  --total-executor-cores 1 \
+  /app/python/us-stock-analysis/src/stream/etl_stream.py \
+  --broker kafka:9092 --topics stocks --query 1
+
+# apretar CTRL+C para salir
+```
+
 Finalizada la consulta, procederemos a consultar los datos generados por la misma, como así también la estructura de archivos creados.
 
 Abrir otra tab y volver a ingresar al servidor donde se encuentran corriendo los contenedores.
@@ -177,7 +257,18 @@ Algunas consultas a realizar:
 #### Escribiendo en consola
 ##### `query2 | Console Output | Average Price Aggregation`
 En este caso vamos a realizar una serie de agregaciones y usaremos la consola como output.
-Recordar que para correr esta consulta debes descomentar la sección correspondiente a `query2 | Console Output | Average Price Aggregation` y comentar las restantes.
+
+```bash
+docker exec -it worker1 /opt/spark/bin/spark-submit \
+  --master 'spark://master:7077' \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
+  --jars /app/postgresql-42.1.4.jar \
+  --total-executor-cores 1 \
+  /app/python/us-stock-analysis/src/stream/etl_stream.py \
+  --broker kafka:9092 --topics stocks --query 2
+
+# apretar CTRL+C para salir
+```
 
 Una vez lanzada la aplicación, podemos ver como se muestra en consola cada 10 segundos el precio promedio actualizado de cada `symbol`.
 
@@ -202,7 +293,19 @@ CREATE TABLE streaming_inserts (
 );
 ```
 
-Recordar que para correr esta consulta debes descomentar la sección correspondiente a `query3 | Postgres Output | Simple insert` y comentar las restantes.
+El siguiente paso consisitirá en correr la aplicación que persisitira los datos en dicha tabla:
+
+```bash
+docker exec -it worker1 /opt/spark/bin/spark-submit \
+  --master 'spark://master:7077' \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
+  --jars /app/postgresql-42.1.4.jar \
+  --total-executor-cores 1 \
+  /app/python/us-stock-analysis/src/stream/etl_stream.py \
+  --broker kafka:9092 --topics stocks --query 3
+
+# apretar CTRL+C para salir
+```
 
 Una vez que la aplicación empiece a correr, puedes ir al tab de postgres, donde creaste la tabla y realizar las siguientes consultas, para ver como se van generando nuevos datos:
 
@@ -218,7 +321,6 @@ ORDER BY "timestamp" desc
 LIMIT 10;
 ```
 
-Recuerda para la aplicación con `Ctrl + c` antes de continuar a la siguiente consulta.
 
 ##### `query4 | Postgres Output | Average Price Aggregation`
 Al igual que la query anterior, procedemos a crear la tabla de destino previa ejecución de la aplicación streaming.  
@@ -237,17 +339,28 @@ CREATE TABLE streaming_inserts_avg_price (
 );
 ```
 
-Recordar que para correr esta consulta debes descomentar la sección correspondiente a `query4 | Postgres Output | Average Price Aggregation` y comentar las restantes.
+Procedemos a correr la nueva aplicación:
+
+El siguiente paso consisitirá en correr el job que persisitira los datos en dicha tabla:
+
+```bash
+docker exec -it worker1 /opt/spark/bin/spark-submit \
+  --master 'spark://master:7077' \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
+  --jars /app/postgresql-42.1.4.jar \
+  --total-executor-cores 1 \
+  /app/python/us-stock-analysis/src/stream/etl_stream.py \
+  --broker kafka:9092 --topics stocks --query 4
+
+# apretar CTRL+C para salir
+```
 
 Revise el código de la nueva función y observe las diferencias con el anterior. ¿Qué diferencias observa?
-
 
 Al igual que el punto anterior, una vez lanzada la aplicación puedes ir al tab de postgres y realizar una serie de consultas sobre los nuevos datos.
 
 ¿Qué ve de particular en la fecha de comienzo?  
-¿Cómo harías para reemplazar la `udf` con funciones propias de `pyspark`?   
-
-Recuerda para la aplicación con `Ctrl + c` antes de continuar a la siguiente consulta.
+Revisar el código para reemplazar la `udf` con funciones propias de `pyspark`
 
 ##### `query5 | Postgres Output | Average Price Aggregation with Timestamp columns`
 Tal como hicimos en las últimas 2 secciones, procedemos a crear la tabla donde van a persistirse los nuevos datos.
@@ -267,6 +380,19 @@ CREATE TABLE streaming_inserts_avg_price_final (
 );
 ```
 
+Iniciamos la aplicación streaming:
+
+```bash
+docker exec -it worker1 /opt/spark/bin/spark-submit \
+  --master 'spark://master:7077' \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
+  --jars /app/postgresql-42.1.4.jar \
+  --total-executor-cores 1 \
+  /app/python/us-stock-analysis/src/stream/etl_stream.py \
+  --broker kafka:9092 --topics stocks --query 5
+
+# apretar CTRL+C para salir
+```
 Recordar que para correr esta consulta debes descomentar la sección correspondiente a `query5 | Postgres Output | Average Price Aggregation with Timestamp columns` y comentar las restantes.
 
 Lancemos la aplicación, tal como hemos hecho en las secciones anteriores, y dejemos corriendo la misma, ya que vamos a ir visualizando los datos.  
@@ -277,5 +403,3 @@ Una vez completados los pasos anteriores pruebe algunos de las siguientes modifi
 
 1. Agregue al job final lógica para que además de calcular el avg_price calcule el max de cada ventana.
 2. Agregue nuevas visualizaciones al dashboard de Superset y haga que se refresque cada 10 segundos.
-3. Modifica las funciones `stream_aggregation_to_postgres` y `stream_aggregation_to_postgres_final` en `etl_stream.py` para que usen funciones nativas de pyspark en lugar de `udf`.
-4. Agregue al `fake_stock_price_generator.py` lógica para generar un volumen para cada acción de manera artificial además del precio. Modifique los jobs de streaming para procesar este dato. 

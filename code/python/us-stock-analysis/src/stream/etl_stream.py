@@ -1,4 +1,4 @@
-import sys
+import argparse
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -11,24 +11,27 @@ from pyspark.sql.types import (
 )
 
 
-def validate_params(args):
-    if len(args) != 3:
-        print(f"""
-         |Usage: {args[0]} <brokers> <topics>
-         |  <brokers> is a list of one or more Kafka brokers
-         |  <topic> is a a kafka topic to consume from
-         |
-         |  {args[0]} kafka:9092 stocks
-        """)
-        sys.exit(1)
-    pass
+def get_args(valid_queries):
+    parser = argparse.ArgumentParser(description="Streaming practice")
+    parser.add_argument(
+        "--brokers", nargs="+", help="Kafka brokers (host:port)", required=True
+    )
+    parser.add_argument(
+        "--topics", nargs="+", help="Kafka topics", required=True
+    )
+    parser.add_argument(
+        "--query", choices=valid_queries, type=int, help="Query to run", required=True
+    )
+    parser.add_argument(
+        "--timeout", type=int, help="Timeout for the query", default=None
+    )
+    return parser.parse_args()
 
 
-def create_spark_session():
+def create_spark_session(app_name):
     return (
-        SparkSession
-        .builder
-        .appName("Stocks:Stream:ETL")
+        SparkSession.builder
+        .appName(app_name)
         .config("spark.driver.memory", "512m")
         .config("spark.executor.memory", "512m")
         .config("spark.sql.shuffle.partitions", "2")
@@ -36,18 +39,15 @@ def create_spark_session():
     )
 
 
-def start_stream(args):
-    validate_params(args)
-    _, brokers, topic = args
+def start_stream(brokers, topics, query_function, query_timeout):
 
-    spark = create_spark_session()
+    spark = create_spark_session(f"Stocks:Stream:ETL | Query:{query_fn}")
 
     json = (
-        spark
-        .readStream
+        spark.readStream
         .format("kafka")
-        .option("kafka.bootstrap.servers", brokers)
-        .option("subscribe", topic)
+        .option("kafka.bootstrap.servers", ",".join(brokers))
+        .option("subscribe", ",".join(topics))
         .load()
     )
 
@@ -65,78 +65,14 @@ def start_stream(args):
         F.from_json(F.col("value").cast("string"), schema, json_options).alias("content")
     )
 
-    stocks_json.printSchema
+    stocks_json.printSchema()
 
     stocks = stocks_json.select("content.*")
 
-    #############################################################################
-    # query1 | Parquet Output
-    #############################################################################
-    query1 = (
-        stocks
-        .withColumn("year", F.year(F.col("timestamp")))
-        .withColumn("month", F.month(F.col("timestamp")))
-        .withColumn("day", F.dayofmonth(F.col("timestamp")))
-        .withColumn("hour", F.hour(F.col("timestamp")))
-        .withColumn("minute", F.minute(F.col("timestamp")))
-        .writeStream
-        .format("parquet")
-        .partitionBy("year", "month", "day", "hour", "minute")
-        .option("startingOffsets", "earliest")
-        .option("checkpointLocation", "/dataset/checkpoint")
-        .option("path", "/dataset/streaming.parquet")
-        .trigger(processingTime="30 seconds")
-        .start()
-    )
-
-    query1.awaitTermination(timeout=120)
-    print("Stopping application.")
-    print(
-        "You can start a pyspark shell a run this:\n"
-        "df = spark.read.parquet('/dataset/streaming.parquet')\n"
-        "df.show()"
-    )
-    query1.stop()
-
-    #############################################################################
-    # query2 | Console Output | Average Price Aggregation
-    #############################################################################
-    # avg_pricing = (
-    #     stocks
-    #     .groupBy(F.col("symbol"))
-    #     .agg(F.avg(F.col("price")).alias("avg_price"))
-    # )
-
-    # query2 = (
-    #     avg_pricing
-    #     .writeStream
-    #     .outputMode("complete")
-    #     .format("console")
-    #     .trigger(processingTime="10 seconds")
-    #     .start()
-    # )
-
-    # query2.awaitTermination()
-
-    #############################################################################
-    # query3 | Postgres Output | Simple insert
-    #############################################################################
-    # query3 = stream_to_postgres(stocks)
-    # query3.awaitTermination()
-
-    #############################################################################
-    # query4 | Postgres Output | Average Price Aggregation
-    #############################################################################
-    # query4 = stream_aggregation_to_postgres(stocks)
-    # query4.awaitTermination()
-
-    #############################################################################
-    # query5 | Postgres Output | Average Price Aggregation with Timestamp columns
-    #############################################################################
-    # query5 = stream_aggregation_to_postgres_final(stocks)
-    # query5.awaitTermination()
-
-    pass
+    query = query_function(stocks)
+    print("You can stop the execution at any time with CTRL + C")
+    query.awaitTermination(timeout=query_timeout)
+    query.stop()
 
 
 def define_write_to_postgres(table_name):
@@ -157,27 +93,6 @@ def define_write_to_postgres(table_name):
     return write_to_postgres
 
 
-def stream_to_postgres(stocks, output_table="streaming_inserts"):
-    wstocks = (
-        stocks
-        .withWatermark("timestamp", "60 seconds")
-        .select("timestamp", "symbol", "price")
-    )
-
-    write_to_postgres_fn = define_write_to_postgres("streaming_inserts")
-
-    query = (
-        wstocks
-        .writeStream
-        .foreachBatch(write_to_postgres_fn)
-        .outputMode("append")
-        .trigger(processingTime="10 seconds")
-        .start()
-    )
-
-    return query
-
-
 def summarize_stocks(stocks):
     avg_pricing = (
         stocks
@@ -192,51 +107,155 @@ def summarize_stocks(stocks):
     return avg_pricing
 
 
-def stream_aggregation_to_postgres(stocks, output_table="streaming_inserts_avg_price"):
+# Query 1
+def get_query_parquet_output(df):
+    output_path = "/dataset/streaming.parquet"
+    checkpoint_path = "/dataset/checkpoint"
 
-    avg_pricing = summarize_stocks(stocks)
-
-    window_to_string = F.udf(lambda w: str(w.start) + " - " + str(w.end), StringType())
-
-    write_to_postgres_fn = define_write_to_postgres(output_table)
+    transformed_df = (
+        df
+        .withColumn("year", F.year(F.col("timestamp")))
+        .withColumn("month", F.month(F.col("timestamp")))
+        .withColumn("day", F.dayofmonth(F.col("timestamp")))
+        .withColumn("hour", F.hour(F.col("timestamp")))
+        .withColumn("minute", F.minute(F.col("timestamp")))
+    )
 
     query = (
-        avg_pricing
-        .withColumn("window", window_to_string("window"))
-        .writeStream
-        .foreachBatch(write_to_postgres_fn)
-        .outputMode("append")
-        .trigger(processingTime="10 seconds")
+        transformed_df.writeStream
+        .format("parquet")
+        .partitionBy("year", "month", "day", "hour", "minute")
+        .option("startingOffsets", "earliest")
+        .option("checkpointLocation", checkpoint_path)
+        .option("path", output_path)
+        .trigger(processingTime="30 seconds")
         .start()
     )
+
+    print("The query check every 30 seconds for new data.")
+    print(f"Output path: {output_path}")
+    print(f"Checkpoint path: {checkpoint_path}")
 
     return query
 
 
-def stream_aggregation_to_postgres_final(stocks, output_table="streaming_inserts_avg_price_final"):
-
-    avg_pricing = summarize_stocks(stocks)
-
-    window_start_ts_fn = F.udf(lambda w: w.start, TimestampType())
-
-    window_end_ts_fn = F.udf(lambda w: w.end, TimestampType())
-
-    write_to_postgres_fn = define_write_to_postgres(output_table)
+# Query 2
+def get_query_console_output_avg_price(df):
+    transformed_df = (
+        df
+        .groupBy(F.col("symbol"))
+        .agg(F.avg(F.col("price")).alias("avg_price"))
+    )
 
     query = (
-        avg_pricing
-        .withColumn("window_start", window_start_ts_fn("window"))
-        .withColumn("window_end", window_end_ts_fn("window"))
-        .drop("window")
+        transformed_df.writeStream
+        .outputMode("complete")
+        .format("console")
+        .trigger(processingTime="10 seconds")
+        .start()
+    )
+
+    print("The query check every 10 seconds for new data.")
+
+    return query
+
+
+# Query 3
+def get_query_postgre_output(df):
+    table_name = "streaming_inserts"
+
+    transformed_df = (
+        df
+        .withWatermark("timestamp", "60 seconds")
+        .select("timestamp", "symbol", "price")
+    )
+
+    foreach_batch_writer = define_write_to_postgres(table_name)
+
+    query = (
+        transformed_df
         .writeStream
-        .foreachBatch(write_to_postgres_fn)
+        .foreachBatch(foreach_batch_writer)
         .outputMode("append")
         .trigger(processingTime="10 seconds")
         .start()
     )
+
+    print("The query check every 10 seconds for new data.")
+    print(f"Table name: {table_name}")
+
+    return query
+
+
+# Query 4
+def get_query_postgre_output_avg_price(df):
+    table_name = "streaming_inserts_avg_price"
+
+    transformed_df = summarize_stocks(df)
+
+    window_to_string = F.udf(lambda w: str(w.start) + " - " + str(w.end), StringType())
+
+    foreach_batch_writer = define_write_to_postgres(table_name)
+
+    query = (
+        transformed_df
+        # .withColumn("window", F.concat_ws(" - ", "window.start", "window.end"))
+        .withColumn("window", window_to_string("window"))
+        .writeStream
+        .foreachBatch(foreach_batch_writer)
+        .outputMode("append")
+        .trigger(processingTime="10 seconds")
+        .start()
+    )
+
+    print("The query check every 10 seconds for new data.")
+    print(f"Table name: {table_name}")
+
+    return query
+
+
+# Query 5
+def get_query_postgre_output_avg_price_windows(df):
+    table_name = "streaming_inserts_avg_price_final"
+
+    transformed_df = summarize_stocks(df)
+
+    foreach_batch_writer = define_write_to_postgres(table_name)
+
+    query = (
+        transformed_df
+        .withColumn("window_start", F.col("window.start"))
+        .withColumn("window_end", F.col("window.end"))
+        .drop("window")
+        .writeStream
+        .foreachBatch(foreach_batch_writer)
+        .outputMode("append")
+        .trigger(processingTime="10 seconds")
+        .start()
+    )
+
+    print("The query check every 10 seconds for new data.")
+    print(f"Table name: {table_name}")
 
     return query
 
 
 if __name__ == "__main__":
-    start_stream(sys.argv)
+    queries = {
+        1: get_query_parquet_output,
+        2: get_query_console_output_avg_price,
+        3: get_query_postgre_output,
+        4: get_query_postgre_output_avg_price,
+        5: get_query_postgre_output_avg_price_windows,
+    }
+
+    args = get_args(valid_queries=list(queries))
+
+    query_fn = queries[args.query]
+    
+    start_stream(
+        brokers=args.brokers,
+        topics=args.topics,
+        query_function=query_fn,
+        query_timeout=args.timeout
+    )
