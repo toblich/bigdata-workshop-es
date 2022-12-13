@@ -38,6 +38,8 @@ docker exec -it worker1 /opt/spark/bin/spark-submit \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
   --jars /app/postgresql-42.1.4.jar \
   --total-executor-cores 1 \
+  --executor-memory 512m \
+  --driver-memory 512m \
   /app/python/us-stock-analysis/src/examples/first_example.py
 
 docker exec -it worker1 /opt/spark/bin/spark-submit \
@@ -45,6 +47,8 @@ docker exec -it worker1 /opt/spark/bin/spark-submit \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 \
   --jars /app/postgresql-42.1.4.jar \
   --total-executor-cores 1 \
+  --executor-memory 512m \
+  --driver-memory 512m \
   src/examples/postgres_example.py
 ```
 # Create a Project using `venv`
