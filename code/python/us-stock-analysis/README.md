@@ -117,12 +117,14 @@ Podemos consultar una posición cualquiera del log agregando las opciones `-oN` 
 
 Paso 1: Definir el input
 
-En una consola, ejecutamos el siguiente comando que va a ser el input de nuestro job
+En una consola levantada con `docker exec`, ejecutamos el siguiente comando que va a ser el input de nuestro job:
 ```bash
-nc -lk 9999
+sudo apt update
+sudo apt install -y ncat
+ncat -lk 9999
 ```
 
-En otra consola, iniciamos una sesión de Spark interactiva.
+En otra consola (tambien levantada con `docker exec`), iniciamos una sesión de Spark interactiva.
 ```bash
 pyspark --total-executor-cores 1 --executor-memory 512m --driver-memory 512m
 ```
@@ -183,6 +185,8 @@ query.awaitTermination()
 # escribir en la otra consola
 query.stop()
 ```
+
+En este punto deberian escribir oraciones en la 1ra consola y el conteo de las mismas deberia aparecer en la 2da.
 
 #### US stocks
 
