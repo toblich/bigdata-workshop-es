@@ -102,7 +102,7 @@ def _perform_daily_report(**context):
 default_args = {
     'owner': 'pedro',
     'retries': 0,
-    'start_date': datetime(2022, 8, 14),
+    'start_date': datetime(2022, 12, 10),
     'email_on_failure': True,
     'email_on_retry': False,
     'email': ['pedro@muttdata.ai'],
