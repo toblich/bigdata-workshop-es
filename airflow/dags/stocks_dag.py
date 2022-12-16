@@ -12,7 +12,7 @@ from sqlite_cli import SqLiteClient
 
 BASE_URL = 'https://www.alphavantage.co/query'
 API_KEY = 'TFHNYCWBD71JBSON'
-STOCK_FN = 'TIME_SERIES_DAILY'
+STOCK_FN = 'TIME_SERIES_DAILY_ADJUSTED'
 
 SQL_DB = '/tmp/sqlite_default.db'  # This is defined in Admin/Connections
 SQL_TABLE = 'stocks_daily'
@@ -47,7 +47,7 @@ def _get_stock_data(stock_symbol, **context):
             if c != 'date':
                 df[c] = df[c].astype(float)
         df['avg_price'] = (df['2. high'] + df['3. low']) / 2
-        df['avg_num_trades'] = df['5. volume'] / 1440
+        df['avg_num_trades'] = df['6. volume'] / 1440
     else:
         df = pd.DataFrame(
             [[date, np.nan, np.nan]], columns=['date', 'avg_num_trades', 'avg_price'],
