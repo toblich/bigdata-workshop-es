@@ -153,8 +153,34 @@ services:
       - "9090:9090"
     volumes:
       - ./airflow/dags:/usr/local/airflow/dags
+      - ./airflow/requirements.txt:/requirements.txt
+
+  minio:
+    container_name: minio
+    image: quay.io/minio/minio
+    ports:
+      - "9000:9000"
+      - "9091:9091"
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: itba-ecd
+      MINIO_ROOT_PASSWORD: seminario
+    command: server /data --console-address ":9091"
+
+  sms-api:
+    container_name: sms-api
+    build:
+      context: api
+    volumes:
+      - "./api/app.js:/app.js"
+      - "./api/SMSSpamCollection:/SMSSpamCollection"
+    ports:
+      - "3000:3000"
+    command: "."
 
 volumes:
   postgres-data:
+  minio-data:
   superset:
   postgres-airflow-data:
