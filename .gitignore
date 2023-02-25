@@ -21,3 +21,4 @@ __pycache__
 dataset/titanic_*
 .idea/
 .vscode
+airflow/dags/tmp-files/
