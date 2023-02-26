@@ -163,9 +163,27 @@ services:
       - "9091:9091"
     volumes:
       - minio-data:/data
+    depends_on:
+      - kafka
     environment:
       MINIO_ROOT_USER: itba-ecd
       MINIO_ROOT_PASSWORD: seminario
+      MINIO_NOTIFY_KAFKA_ENABLE_LANDING: "on"
+      MINIO_NOTIFY_KAFKA_BROKERS_LANDING: "kafka:9092"
+      MINIO_NOTIFY_KAFKA_TOPIC_LANDING: "landing"
+      # MINIO_NOTIFY_KAFKA_SASL_USERNAME_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_SASL_PASSWORD_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_SASL_MECHANISM_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_TLS_CLIENT_AUTH_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_SASL_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_TLS_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_TLS_SKIP_VERIFY_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_CLIENT_TLS_CERT_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_CLIENT_TLS_KEY_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_QUEUE_DIR_LANDING: "<string>"
+      # MINIO_NOTIFY_KAFKA_QUEUE_LIMIT_LANDING: "<string>"
+      MINIO_NOTIFY_KAFKA_VERSION_LANDING: "0.10.1.0"
+      # MINIO_NOTIFY_KAFKA_COMMENT_LANDING: "<string>"
     command: server /data --console-address ":9091"
 
   sms-api:

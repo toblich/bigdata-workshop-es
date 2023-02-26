@@ -10,6 +10,7 @@ from airflow.exceptions import AirflowSkipException
 
 from minio import Minio
 from minio.error import S3Error
+from minio.notificationconfig import NotificationConfig, PrefixFilterRule, QueueConfig
 
 BUCKET="sms"
 
@@ -27,11 +28,20 @@ def create_bucket():
     client = make_minio_client()
 
     found = client.bucket_exists(BUCKET)
-    if not found:
-        print(f"Bucket '{BUCKET}' did not exist. Creating it...")
-        client.make_bucket(BUCKET)
-    else:
+    if found:
         print(f"Bucket '{BUCKET}' already exists")
+        return
+
+    print(f"Bucket '{BUCKET}' did not exist. Creating it...")
+    client.make_bucket(BUCKET)
+    client.set_bucket_notification(BUCKET, NotificationConfig(
+        queue_config_list=[QueueConfig(
+            "arn:minio:sqs::LANDING:kafka",
+            ["s3:ObjectCreated:Put"],
+            config_id="1",
+            prefix_filter_rule=PrefixFilterRule("sms-"),
+        )]
+    ))
 
 
 def get_sms():
