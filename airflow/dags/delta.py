@@ -58,7 +58,7 @@ class KafkaSensor(BaseSensorOperator):
 with DAG(
     "sms_delta_transform",
     default_args = {'owner': 'tobi', 'retries': 0, 'start_date': datetime(2023, 2, 24)},
-    schedule_interval='@once',
+    schedule_interval='*/1 * * * *',
     is_paused_upon_creation=False,
 ) as dag:
 
@@ -85,8 +85,11 @@ with DAG(
         brokers="kafka:9092",
         topics=["landing"],
         task_id="listen_for_message",
-        # poke_interval=30,
-        # timeout=25
+        soft_fail=True,
+        poke_interval=60,
+        timeout=15,
+        mode='reschedule',
+        max_active_runs=1
     )
 
     transform_message = PythonOperator(
