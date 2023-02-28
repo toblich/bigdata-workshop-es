@@ -12,6 +12,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
+from minio_client import make_minio_client
 
 class KafkaSensor(BaseSensorOperator):
     def __init__(self, brokers, topics, *args, **kwargs):
@@ -63,8 +64,21 @@ with DAG(
 
     def transform(**context):
         task_instance = context['ti']
-        key = task_instance.xcom_pull(task_ids='listen_for_message', key="key")
-        print("FIZZ BUZZ", key)
+        (bucket, objectname) = task_instance.xcom_pull(task_ids='listen_for_message', key="key").split('/')
+        print("FIZZ BUZZ", bucket, objectname)
+
+        client = make_minio_client()
+        try:
+            response = client.get_object(bucket, objectname)
+            # Read data from response.
+            data = json.loads(response.data.decode('utf-8'))
+        finally:
+            response.close()
+            response.release_conn()
+
+        for d in data:
+            print(d)
+
 
 
     listen_for_message = KafkaSensor(

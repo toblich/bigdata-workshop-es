@@ -8,20 +8,11 @@ from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.exceptions import AirflowSkipException
 
-from minio import Minio
+from minio_client import make_minio_client
 from minio.error import S3Error
 from minio.notificationconfig import NotificationConfig, PrefixFilterRule, QueueConfig
 
 BUCKET="sms"
-
-
-def make_minio_client():
-    return Minio(
-        "minio:9000",
-        access_key="itba-ecd",
-        secret_key="seminario",
-        secure=False,
-    )
 
 
 def create_bucket():
