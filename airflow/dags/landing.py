@@ -74,7 +74,7 @@ def land_sms(**context):
 
 
 default_args = {'owner': 'tobi', 'retries': 0, 'start_date': datetime(2023, 2, 24)}
-with DAG('sms_etl', default_args=default_args, schedule_interval=timedelta(seconds=5)) as dag:
+with DAG('sms_etl', default_args=default_args, schedule_interval=timedelta(seconds=5), is_paused_upon_creation=False) as dag:
     create_bucket_if_not_exists = PythonOperator(
         task_id='create_bucket_if_not_exists',
         python_callable=create_bucket
