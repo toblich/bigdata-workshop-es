@@ -8,23 +8,16 @@ from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.exceptions import AirflowSkipException
 
-from minio_client import make_minio_client
+from minio_client import make_minio_client, create_bucket
 from minio.error import S3Error
 from minio.notificationconfig import NotificationConfig, PrefixFilterRule, QueueConfig
 
-BUCKET="sms"
+BUCKET="landing"
 
 
-def create_bucket():
+def create_bucket_step():
     client = make_minio_client()
-
-    found = client.bucket_exists(BUCKET)
-    if found:
-        print(f"Bucket '{BUCKET}' already exists")
-        return
-
-    print(f"Bucket '{BUCKET}' did not exist. Creating it...")
-    client.make_bucket(BUCKET)
+    create_bucket(client, BUCKET)
     client.set_bucket_notification(BUCKET, NotificationConfig(
         queue_config_list=[QueueConfig(
             "arn:minio:sqs::LANDING:kafka",
@@ -68,7 +61,7 @@ default_args = {'owner': 'tobi', 'retries': 0, 'start_date': datetime(2023, 2, 2
 with DAG('sms_etl', default_args=default_args, schedule_interval=timedelta(seconds=5), is_paused_upon_creation=False) as dag:
     create_bucket_if_not_exists = PythonOperator(
         task_id='create_bucket_if_not_exists',
-        python_callable=create_bucket
+        python_callable=create_bucket_step
     )
     get_sms_page = PythonOperator(
         task_id='get_sms_page',

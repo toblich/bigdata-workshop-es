@@ -1,2 +1,4 @@
 minio
 confluent-kafka
+pandas == 1.3.5
+pyarrow
