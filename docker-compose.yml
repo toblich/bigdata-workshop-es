@@ -1,12 +1,16 @@
 version: "3"
+
+x-local-img-context: &local-img-context
+
+
 services:
-  docs:
-    container_name: docs
-    image: nginx
-    ports:
-      - "80:80"
-    volumes:
-      - "./nginx/html:/usr/share/nginx/html:ro"
+  # docs:
+  #   container_name: docs
+  #   image: nginx
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - "./nginx/html:/usr/share/nginx/html:ro"
 
   # master:
   #   container_name: master
@@ -63,25 +67,6 @@ services:
   #     - ./code:/app
   #     - ./dataset:/dataset
 
-  # worker3:
-  #   container_name: worker3
-  #   image: arjones/pyspark:2.4.5
-  #   restart: always
-  #   command: ["/opt/spark/sbin/start-slave.sh", "spark://master:7077", "--memory", "512m", "--cores", "2"]
-  #   environment:
-  #     MASTER: spark://master:7077
-  #     SPARK_NO_DAEMONIZE: 1
-  #   depends_on:
-  #     - master
-  #   ports:
-  #     - 4043:4040
-  #     - "6066"
-  #     - "7077"
-  #     - 8083:8080
-  #   volumes:
-  #     - ./code:/app
-  #     - ./dataset:/dataset
-
   # jupyter:
   #   container_name: jupyter
   #   image: arjones/pyspark:2.4.5
@@ -97,16 +82,19 @@ services:
   #     - ./dataset:/dataset
   #     - ./code:/app
 
-  # kafka:
-  #   container_name: kafka
-  #   image: spotify/kafka
-  #   restart: always
-  #   ports:
-  #     - "2181:2181"
-  #     - "9092:9092"
-  #   environment:
-  #     ADVERTISED_HOST: kafka
-  #     ADVERTISED_PORT: 9092
+  jupyter:
+    build:
+      context: ./jupyter
+    volumes:
+      - ./jupyter/notebook:/home/jovyan/work
+      # - ./dataset:/dataset
+      # - ./code:/app
+    ports:
+      - 8888:8888
+    environment:
+      AWS_ACCESS_KEY_ID: itba-ecd
+      AWS_SECRET_KEY: seminario
+    command: start.sh jupyter notebook --NotebookApp.token=''
 
   zoo1:
     image: confluentinc/cp-zookeeper:7.3.2
