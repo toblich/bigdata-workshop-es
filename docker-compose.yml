@@ -4,91 +4,11 @@ x-local-img-context: &local-img-context
 
 
 services:
-  # docs:
-  #   container_name: docs
-  #   image: nginx
-  #   ports:
-  #     - "80:80"
-  #   volumes:
-  #     - "./nginx/html:/usr/share/nginx/html:ro"
-
-  # master:
-  #   container_name: master
-  #   image: arjones/pyspark:2.4.5
-  #   restart: always
-  #   command: ["/opt/spark/sbin/start-master.sh"]
-  #   environment:
-  #     MASTER: spark://master:7077
-  #     SPARK_NO_DAEMONIZE: 1
-  #   ports:
-  #     - 4040:4040
-  #     - 6066:6066
-  #     - 7077:7077
-  #     - 8080:8080
-  #   volumes:
-  #     - ./code:/app
-  #     - ./dataset:/dataset
-
-  # worker1:
-  #   container_name: worker1
-  #   image: arjones/pyspark:2.4.5
-  #   restart: always
-  #   command: ["/opt/spark/sbin/start-slave.sh", "spark://master:7077", "--memory", "512m", "--cores", "2"]
-  #   environment:
-  #     MASTER: spark://master:7077
-  #     SPARK_NO_DAEMONIZE: 1
-  #   depends_on:
-  #     - master
-  #   ports:
-  #     - 4041:4040
-  #     - "6066"
-  #     - "7077"
-  #     - 8081:8080
-  #   volumes:
-  #     - ./code:/app
-  #     - ./dataset:/dataset
-
-  # worker2:
-  #   container_name: worker2
-  #   image: arjones/pyspark:2.4.5
-  #   restart: always
-  #   command: ["/opt/spark/sbin/start-slave.sh", "spark://master:7077", "--memory", "512m", "--cores", "2"]
-  #   environment:
-  #     MASTER: spark://master:7077
-  #     SPARK_NO_DAEMONIZE: 1
-  #   depends_on:
-  #     - master
-  #   ports:
-  #     - 4042:4040
-  #     - "6066"
-  #     - "7077"
-  #     - 8082:8080
-  #   volumes:
-  #     - ./code:/app
-  #     - ./dataset:/dataset
-
-  # jupyter:
-  #   container_name: jupyter
-  #   image: arjones/pyspark:2.4.5
-  #   restart: always
-  #   environment:
-  #     MASTER: spark://master:7077
-  #   depends_on:
-  #     - master
-  #   ports:
-  #     - "8888:8888"
-  #   volumes:
-  #     - ./jupyter/notebook:/notebook
-  #     - ./dataset:/dataset
-  #     - ./code:/app
-
   jupyter:
     build:
       context: ./jupyter
     volumes:
       - ./jupyter/notebook:/home/jovyan/work
-      # - ./dataset:/dataset
-      # - ./code:/app
     ports:
       - 8888:8888
     environment:

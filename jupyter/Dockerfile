@@ -9,3 +9,5 @@ RUN wget --no-check-certificate https://repo1.maven.org/maven2/com/amazonaws/aws
 RUN wget --no-check-certificate https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.420/aws-java-sdk-bundle-1.12.420.jar -O /usr/local/spark-3.3.2-bin-hadoop3/jars/aws-java-sdk-bundle-1.12.420.jar
 
 USER jovyan
+
+RUN pip install nltk
