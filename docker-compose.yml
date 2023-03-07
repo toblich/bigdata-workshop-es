@@ -12,8 +12,10 @@ services:
     ports:
       - 8888:8888
     environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       AWS_ACCESS_KEY_ID: itba-ecd
       AWS_SECRET_KEY: seminario
+      AWS_SECRET_ACCESS_KEY: seminario
     command: start.sh jupyter notebook --NotebookApp.token=''
 
   zoo1:
@@ -149,6 +151,29 @@ services:
       # MINIO_NOTIFY_KAFKA_COMMENT_LANDING: "<string>"
     command: server /data --console-address ":9091"
 
+  mlflow:
+    build: ./mlflow
+    container_name: mlflow
+    depends_on:
+      - minio
+      - mlflow_postgres
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: itba-ecd
+      AWS_SECRET_ACCESS_KEY: seminario
+    command: mlflow server --backend-store-uri postgresql://postgres@mlflow_postgres/mlflow --default-artifact-root s3://mlflow/ --host 0.0.0.0
+    ports:
+      - 4000:5000
+
+  mlflow_postgres:
+    image: postgres:15
+    container_name: mlflow_postgres
+    environment:
+      POSTGRES_DB: mlflow
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - mlflow-postgres-data:/var/lib/postgresql/data
+
   sms-api:
     container_name: sms-api
     build:
@@ -162,6 +187,7 @@ services:
 
 volumes:
   postgres-data:
+  mlflow-postgres-data:
   minio-data:
   superset:
   postgres-airflow-data:

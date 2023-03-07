@@ -10,4 +10,6 @@ RUN wget --no-check-certificate https://repo1.maven.org/maven2/com/amazonaws/aws
 
 USER jovyan
 
-RUN pip install nltk
+COPY requirements.txt .
+
+RUN pip install -r requirements.txt
