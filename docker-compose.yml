@@ -1,8 +1,5 @@
 version: "3"
 
-x-local-img-context: &local-img-context
-
-
 services:
   jupyter:
     build:
@@ -54,41 +51,6 @@ services:
     depends_on:
       - zoo1
 
-  postgres:
-    container_name: postgres
-    image: postgres:11
-    restart: always
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./postgres/scripts:/docker-entrypoint-initdb.d
-    environment:
-      POSTGRES_DB: workshop
-      POSTGRES_USER: workshop
-      POSTGRES_PASSWORD: w0rkzh0p
-    ports:
-      - "5432:5432"
-
-  redis:
-    container_name: redis
-    image: redis
-    restart: always
-
-  # superset:
-  #   container_name: superset
-  #   image: amancevice/superset
-  #   restart: always
-  #   depends_on:
-  #     - redis
-  #     - postgres
-  #   environment:
-  #     MAPBOX_API_KEY: ${MAPBOX_API_KEY}
-  #     SUPERSET_HOME: /etc/superset
-  #   ports:
-  #     - "8088:8088"
-  #   volumes:
-  #     - ./superset/conf/superset_config.py:/etc/superset/superset_config.py
-  #     - superset:/var/lib/superset
-
   postgres-airflow:
     container_name: postgres-airflow
     image: postgres:11
@@ -136,19 +98,6 @@ services:
       MINIO_NOTIFY_KAFKA_ENABLE_LANDING: "on"
       MINIO_NOTIFY_KAFKA_BROKERS_LANDING: "kafka:9092"
       MINIO_NOTIFY_KAFKA_TOPIC_LANDING: "landing"
-      # MINIO_NOTIFY_KAFKA_SASL_USERNAME_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_SASL_PASSWORD_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_SASL_MECHANISM_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_TLS_CLIENT_AUTH_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_SASL_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_TLS_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_TLS_SKIP_VERIFY_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_CLIENT_TLS_CERT_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_CLIENT_TLS_KEY_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_QUEUE_DIR_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_QUEUE_LIMIT_LANDING: "<string>"
-      # MINIO_NOTIFY_KAFKA_VERSION_LANDING: "0.10.1.0"
-      # MINIO_NOTIFY_KAFKA_COMMENT_LANDING: "<string>"
     command: server /data --console-address ":9091"
 
   mlflow:
@@ -186,8 +135,6 @@ services:
     command: "."
 
 volumes:
-  postgres-data:
   mlflow-postgres-data:
-  minio-data:
-  superset:
   postgres-airflow-data:
+  minio-data:

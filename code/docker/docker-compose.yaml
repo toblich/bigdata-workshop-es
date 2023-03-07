@@ -1,8 +1,0 @@
-version: '3.3'
-services:
-  python-test:
-    image: python:3.8-slim
-    # tty: true
-    volumes:
-      - ./script:/home/script
-    command: ["python", "/home/script/hello_world.py"]
