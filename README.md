@@ -32,3 +32,7 @@ El `docker-compose.yml` contiene todos los servicios que se usan. Sin embargo, s
 5. Crear a mano en MinIO un bucket más, llamado `mlflow`
 6. Una vez que el bucket `delta` tiene objetos (puede esperarse a que esté completo con todas las partes del dataset, o ejecutarlo en cualquier momento antes para entrenar con un dataset parcial y volver a ejecutarlo más tarde cuando haya más datos para reentrenar el modelo), entrar a http://localhost:8888/notebooks/work/sms-spam-classifier.ipynb y ejecutar ese notebook
 7. Entrar a http://localhost:4000/ para ver en MLFlow los resultados de la corrida. También se puede ver en MinIO que el bucket `mlflow` tiene datos ahora.
+
+## Diagrama
+
+![diagrama](https://github.com/toblich/bigdata-workshop-es/raw/master/architecture.png)
